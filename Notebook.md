@@ -13,4 +13,5 @@
 - Finished writing functions
 - Finished writing script
 - ran script on test data: it works!
-- Use /projects/bgmp/shared/deduper/C1_SE_uniqAlign.sam as input
+- Sort /projects/bgmp/shared/deduper/C1_SE_uniqAlign.sam to 
+    - info about runtime and memory in logs/dedup_<JOBID>.err

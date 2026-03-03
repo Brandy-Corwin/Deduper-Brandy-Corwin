@@ -17,9 +17,10 @@ def get_args():
 args = get_args()
 
 # Functions
-
 def determine_five_start(left_pos:int, strand:str, cigar:str) -> int:
     '''Given the 1-base leftmost starting position, strand, and cigar string, this function will output the 5 prime start of the read'''
+    
+    # Look for soft clipping on the positive strand
     if strand == "+":
         pattern = r"^[0-9]+S"
         result = re.match(pattern, cigar)
@@ -29,6 +30,7 @@ def determine_five_start(left_pos:int, strand:str, cigar:str) -> int:
         else:
             five_start = left_pos
 
+    # Look for soft clipping on the negative strand
     elif strand == "-":
         cigar_separated = re.findall(r'\d+[a-zA-Z]?', cigar)
         five_start = left_pos
@@ -49,11 +51,12 @@ def read_info_tuple(read: str) -> tuple:
     read = read.strip('\n')
 
     # Get needed information from read
-    umi = read.split("\t")[0].split(':')[-1]
-    flag = int(read.split("\t")[1])
-    chr = read.split("\t")[2]
-    left_pos = int(read.split("\t")[3])
-    cigar = read.split("\t")[5]
+    fields = read.split("\t")
+    umi = fields[0].split(':')[-1]
+    flag = int(fields[1])
+    chr = fields[2]
+    left_pos = int(fields[3])
+    cigar = fields[5]
     
     # Use flag to determine the strand
     if ((flag & 16) == 16):
@@ -89,13 +92,22 @@ reads_per_chr = {}
 with open(args.file, "r") as fh, open(args.outfile, "w") as out:
     for line in fh:
         line = line.strip('\n')
+
+        # Write out all header lines
         if line.startswith("@"):
             out.write(f"{line}\n")
             num_headers += 1
         else:
             variables = read_info_tuple(line)
+
+            # Check if UMI is in list of correct UMIs
             if variables[3] in UMIs:
+
+                # Check if we are still on the same chromosome
                 if variables[0] == current_chr:
+
+                    # Check if our current variable tuple does not already exist (a sequence with the same information is already in our file)
+                    # If new, write to outfile, if not increase duplicates count
                     if variables not in have:
                         have.add(variables)
                         out.write(f"{line}\n")
@@ -103,6 +115,8 @@ with open(args.file, "r") as fh, open(args.outfile, "w") as out:
                         reads_per_chr[variables[0]] +=1
                     else:
                         num_duplicates += 1
+
+                # Once on new chromosome, reset the set of existing sequences and write current sequence to outfile
                 else:
                     current_chr = variables[0]
                     have.clear()
@@ -110,9 +124,12 @@ with open(args.file, "r") as fh, open(args.outfile, "w") as out:
                     out.write(f"{line}\n")
                     num_unique +=1
                     reads_per_chr[variables[0]] = 1
+            
+            # If UMI does not exist in UMI file, add to set of incorrect UMIs
             else:
                 wrong_umis.add(variables[3])
 
+# Print out information about how many unique reads, duplicate reads, and wrong UMIs were in the file, among other useful information
 print(f"Number of headers: {num_headers}")
 print(f"Number of unique reads: {num_unique}")
 print(f"Number of wrong UMIs: {len(wrong_umis)}")
